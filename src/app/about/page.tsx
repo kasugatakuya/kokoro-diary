@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button, Card } from "@/components/ui";
 
-export const metadata: Metadata = { title: "この日記について" };
+export const metadata: Metadata = { title: "この日記について", alternates: { canonical: "/about" } };
 
 export default function AboutPage() {
   return (

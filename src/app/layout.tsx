@@ -4,14 +4,17 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { AppProvider } from "@/components/AppProvider";
 import { Shell } from "@/components/Shell";
+import { SITE_URL } from "@/lib/site";
 
 const body = Noto_Sans_JP({ variable: "--font-body", subsets: ["latin"], preload: false });
 const display = Zen_Maru_Gothic({ variable: "--font-display", weight: ["500", "700"], subsets: ["latin"], preload: false });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  verification: { google: "r4vs5K6kyRpFbT2eQ3xlFxlQbUmRrk_8z6irkNv4HmM" },
   title: { default: "心 日記", template: "%s | 心 日記" },
-  description: "心の中で思ったことを、なんでも書いてしまっておく場所。自分だけの日記です。",
-  robots: { index: false, follow: false },
+  description: "心の中で思ったことを、なんでも書いてしまっておく場所。公開機能のない、自分だけの日記です。",
+  openGraph: { title: "心 日記", description: "心の中で思ったことを、なんでも書いてしまっておく場所。", type: "website", url: "/" },
 };
 
 export const viewport: Viewport = {

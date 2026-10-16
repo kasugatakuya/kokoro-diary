@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { EntryView } from "@/components/EntryView";
 import { Spinner } from "@/components/ui";
 
-export const metadata: Metadata = { title: "日記" };
+export const metadata: Metadata = { title: "日記", robots: { index: false, follow: false } };
 
 export default function Page() {
   return (

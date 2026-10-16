@@ -44,6 +44,15 @@ Vercel では Settings → Environment Variables に同じ 2 つを追加して�
 
 > anon key はブラウザに配られる公開用のキーです。日記を守っているのは RLS ポリシーなので、SQL を必ず実行してください。service_role key は使いません。
 
+## サイトマップと検索エンジン
+
+`/sitemap.xml` と `/robots.txt` をビルド時に生成します（`src/app/sitemap.ts`, `src/app/robots.ts`）。
+検索に載せるのはログイン前に見える `/`, `/about`, `/login` だけで、書く・読む・設定のページは noindex にしています。
+
+公開 URL は Vercel の本番ドメインを自動で使います。独自ドメインにした場合は環境変数 `NEXT_PUBLIC_SITE_URL` を設定してください。
+
+Google Search Console に登録するときは、所有権確認のメタタグを `src/app/layout.tsx` の `metadata.verification.google` に入れ、サイトマップとして `sitemap.xml` を送信します。
+
 ## 開発
 
 ```bash
