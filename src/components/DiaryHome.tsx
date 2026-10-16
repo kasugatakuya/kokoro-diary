@@ -9,6 +9,29 @@ import { formatDateJa, formatMonthJa, formatTime, monthGrid, relativeDays, shift
 import { charCount, currentStreak, filterEntries, groupByMonth } from "@/lib/stats";
 import type { Entry } from "@/lib/types";
 
+/** 1 日に表示する件数の上限。これを超えた分は「もっと見る」で開く */
+export const DAY_LIMIT = 3;
+
+type ListItem = { kind: "entry"; entry: Entry } | { kind: "more"; day: string; rest: number };
+
+/** 同じ日の日記が DAY_LIMIT を超えるとき、超えた分を「もっと見る」にまとめる。expanded が null なら全件表示 */
+export function collapseByDay(entries: Entry[], expanded: Set<string> | null): ListItem[] {
+  const out: ListItem[] = [];
+  const seen = new Map<string, number>();
+  for (const entry of entries) {
+    const n = (seen.get(entry.entryDate) ?? 0) + 1;
+    seen.set(entry.entryDate, n);
+    if (expanded && !expanded.has(entry.entryDate) && n > DAY_LIMIT) {
+      const last = out[out.length - 1];
+      if (last && last.kind === "more" && last.day === entry.entryDate) last.rest++;
+      else out.push({ kind: "more", day: entry.entryDate, rest: 1 });
+      continue;
+    }
+    out.push({ kind: "entry", entry });
+  }
+  return out;
+}
+
 function excerpt(body: string, max = 90): string {
   const flat = body.replace(/\s+/g, " ").trim();
   return flat.length > max ? `${flat.slice(0, max)}…` : flat;
@@ -98,6 +121,7 @@ export function DiaryHome() {
   const [query, setQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
   const [calendar, setCalendar] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() + 1 };
@@ -224,24 +248,36 @@ export function DiaryHome() {
             <section key={g.month}>
               <h2 className="mb-2 px-1 font-display text-sm font-bold text-muted">{formatMonthJa(Number(g.month.slice(0, 4)), Number(g.month.slice(5)))}</h2>
               <ul className="space-y-2">
-                {g.entries.map((e) => (
-                  <li key={e.id}>
+                {collapseByDay(g.entries, filtering ? null : expandedDays).map((item) =>
+                  item.kind === "more" ? (
+                    <li key={`more-${item.day}`} className="pl-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setExpandedDays((prev) => new Set(prev).add(item.day))}
+                      >
+                        ▾ もっと見る（{formatDateJa(item.day, false)} あと {item.rest} 件）
+                      </Button>
+                    </li>
+                  ) : (
+                  <li key={item.entry.id}>
                     <Link
-                      href={`/entry?id=${e.id}`}
+                      href={`/entry?id=${item.entry.id}`}
                       className="block rounded-3xl border border-line bg-card px-5 py-4 shadow-soft transition hover:border-line-strong hover:bg-surface/60"
                     >
                       <div className="flex items-center gap-2 text-xs text-muted">
-                        <span>{formatDateJa(e.entryDate)}</span>
-                        <span className="tabular-nums">{formatTime(e.createdAt)}</span>
-                        {e.categoryId && categoryMap.get(e.categoryId) && <CategoryChip category={categoryMap.get(e.categoryId)!} />}
-                        {relativeDays(e.entryDate) && <span className="rounded-full bg-surface px-2 py-0.5 font-bold">{relativeDays(e.entryDate)}</span>}
-                        <span className="ml-auto">{charCount(e.body)} 文字</span>
+                        <span>{formatDateJa(item.entry.entryDate)}</span>
+                        <span className="tabular-nums">{formatTime(item.entry.createdAt)}</span>
+                        {item.entry.categoryId && categoryMap.get(item.entry.categoryId) && <CategoryChip category={categoryMap.get(item.entry.categoryId)!} />}
+                        {relativeDays(item.entry.entryDate) && <span className="rounded-full bg-surface px-2 py-0.5 font-bold">{relativeDays(item.entry.entryDate)}</span>}
+                        <span className="ml-auto">{charCount(item.entry.body)} 文字</span>
                       </div>
-                      {e.title && <div className="mt-1.5 font-display text-base font-bold">{e.title}</div>}
-                      <p className="mt-1 text-sm leading-relaxed text-ink/80">{excerpt(e.body) || <span className="text-muted">（本文なし）</span>}</p>
+                      {item.entry.title && <div className="mt-1.5 font-display text-base font-bold">{item.entry.title}</div>}
+                      <p className="mt-1 text-sm leading-relaxed text-ink/80">{excerpt(item.entry.body) || <span className="text-muted">（本文なし）</span>}</p>
                     </Link>
                   </li>
-                ))}
+                  ),
+                )}
               </ul>
             </section>
           ))}

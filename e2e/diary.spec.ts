@@ -51,6 +51,19 @@ test.describe("ローカルモードの日記", () => {
       await expect(page.getByText(text)).toBeVisible();
     }
     await expect(page.getByRole("button", { name: /3件$/ })).toBeVisible();
+
+    // 4 件目を書くと、3 件までの表示 + 「もっと見る」になる
+    await page.goto("/write");
+    await page.getByLabel("本文").fill("深夜: まだ起きている");
+    await page.getByRole("button", { name: "しまっておく" }).click();
+    await expect(page).toHaveURL(/\/entry\?id=/);
+    await page.goto("/");
+    await expect(page.getByText("今日は 4 件書きました")).toBeVisible();
+    await expect(page.getByText("深夜: まだ起きている")).toBeVisible(); // 最新は上に出る
+    await expect(page.getByText("朝: ねむい")).toHaveCount(0); // いちばん古い 1 件が畳まれる
+    await page.getByRole("button", { name: /もっと見る/ }).click();
+    await expect(page.getByText("朝: ねむい")).toBeVisible();
+    await expect(page.getByRole("button", { name: /もっと見る/ })).toHaveCount(0);
   });
 
   test("下書きは自動保存され、再訪時に復元される", async ({ page }) => {
