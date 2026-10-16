@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf7f2;
+  --surface: #f3eee6;
+  --card: #ffffff;
+  --ink: #3b3733;
+  --muted: #8a827a;
+  --line: #ebe4da;
+  --line-strong: #d9cfc2;
+  --accent: #c9786d;
+  --accent-deep: #a95f55;
+  --accent-soft: #f6e3df;
+  --shadow-soft: 0 2px 12px rgba(80, 60, 40, 0.07);
+  --cat-rose: #e3a0a6;
+  --cat-amber: #e8b96a;
+  --cat-leaf: #9dbb8a;
+  --cat-sky: #8fb6d6;
+  --cat-lavender: #b4a3d8;
+  --cat-slate: #9aa3ad;
+  --cat-peach: #efb28f;
+  --cat-mint: #8fc9b8;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #1a1816;
+  --surface: #23201d;
+  --card: #1f1c19;
+  --ink: #ece6dd;
+  --muted: #a39a90;
+  --line: #322d28;
+  --line-strong: #463f38;
+  --accent: #d98c80;
+  --accent-deep: #e9a79c;
+  --accent-soft: #3a2a27;
+  --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.35);
+  --cat-rose: #c97f86;
+  --cat-amber: #c99a4a;
+  --cat-leaf: #7f9e6c;
+  --cat-sky: #6f98ba;
+  --cat-lavender: #9683bf;
+  --cat-slate: #7d8691;
+  --cat-peach: #cf8f6a;
+  --cat-mint: #6fa996;
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --shadow-soft: var(--shadow-soft);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-danger: #d1605e;
+  --font-sans: var(--font-body), "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-display: var(--font-display), "Hiragino Maru Gothic ProN", "Hiragino Sans", system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+textarea,
+input,
+select,
+button {
+  font-family: inherit;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+/* 日記本文: 行間広め */
+.prose-diary {
+  line-height: 1.95;
+  letter-spacing: 0.01em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* カテゴリの札: 文字は常に濃い色で読みやすく */
+.cat-chip {
+  color: #2d2724;
 }
