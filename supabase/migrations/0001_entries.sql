@@ -1,4 +1,4 @@
--- 心 日記: 日記エントリ
+-- こころ日記: 日記エントリ
 -- Supabase ダッシュボードの SQL Editor に貼り付けて実行してください。
 
 create table if not exists public.entries (

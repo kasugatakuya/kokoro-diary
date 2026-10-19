@@ -12,9 +12,9 @@ const display = Zen_Maru_Gothic({ variable: "--font-display", weight: ["500", "7
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   verification: { google: "r4vs5K6kyRpFbT2eQ3xlFxlQbUmRrk_8z6irkNv4HmM" },
-  title: { default: "心 日記", template: "%s | 心 日記" },
+  title: { default: "こころ日記", template: "%s | こころ日記" },
   description: "心の中で思ったことを、なんでも書いてしまっておく場所。公開機能のない、自分だけの日記です。",
-  openGraph: { title: "心 日記", description: "心の中で思ったことを、なんでも書いてしまっておく場所。", type: "website", url: "/" },
+  openGraph: { title: "こころ日記", description: "心の中で思ったことを、なんでも書いてしまっておく場所。", type: "website", url: "/" },
 };
 
 export const viewport: Viewport = {

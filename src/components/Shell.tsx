@@ -37,7 +37,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-wide">
             <span className="grid size-8 place-items-center rounded-full bg-accent-soft text-base">🕊️</span>
-            心 日記
+            こころ日記
           </Link>
           {user && (
             <nav className="ml-auto hidden items-center gap-1 sm:flex">

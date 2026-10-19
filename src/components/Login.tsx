@@ -57,7 +57,7 @@ export function Login() {
     <div className="mx-auto max-w-md">
       <div className="mb-6 text-center">
         <div className="text-5xl">🕊️</div>
-        <h1 className="mt-3 font-display text-2xl font-bold">心 日記</h1>
+        <h1 className="mt-3 font-display text-2xl font-bold">こころ日記</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           心の中で思ったことを、なんでも書いてしまっておく場所。
           <br />
