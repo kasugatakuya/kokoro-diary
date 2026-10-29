@@ -26,6 +26,8 @@ export interface AppState {
   createEntry: (input: EntryInput) => Promise<Entry>;
   updateEntry: (id: string, input: EntryInput) => Promise<Entry>;
   deleteEntry: (id: string) => Promise<void>;
+  /** お気に入りを切り替える。画面はすぐ反映し、保存に失敗したら元に戻す */
+  toggleFavorite: (id: string) => Promise<void>;
   createCategory: (input: CategoryInput) => Promise<Category>;
   updateCategory: (id: string, input: CategoryInput) => Promise<Category>;
   deleteCategory: (id: string) => Promise<void>;
@@ -156,6 +158,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }, [repo]);
 
+  const toggleFavorite = useCallback(
+    async (id: string) => {
+      if (!repo) throw new Error("ログインが必要です。");
+      const current = entries.find((e) => e.id === id);
+      if (!current) return;
+      const next = !current.favorite;
+      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, favorite: next } : e)));
+      try {
+        const saved = await repo.setFavorite(id, next);
+        setEntries((prev) => prev.map((e) => (e.id === id ? saved : e)));
+      } catch (e) {
+        setEntries((prev) => prev.map((x) => (x.id === id ? { ...x, favorite: !next } : x)));
+        throw e;
+      }
+    },
+    [repo, entries],
+  );
+
   const createCategory = useCallback(
     async (input: CategoryInput) => {
       if (!repo) throw new Error("ログインが必要です。");
@@ -248,6 +268,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     createEntry,
     updateEntry,
     deleteEntry,
+    toggleFavorite,
     createCategory,
     updateCategory,
     deleteCategory,

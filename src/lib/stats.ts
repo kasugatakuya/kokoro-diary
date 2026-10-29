@@ -20,10 +20,11 @@ export function charCount(text: string): number {
 
 export function filterEntries(
   entries: Entry[],
-  { query, month, categoryId }: { query?: string; month?: string | null; categoryId?: string | null },
+  { query, month, categoryId, favorite }: { query?: string; month?: string | null; categoryId?: string | null; favorite?: boolean },
 ): Entry[] {
   const q = query?.trim().toLowerCase();
   return entries.filter((e) => {
+    if (favorite && !e.favorite) return false;
     if (categoryId && e.categoryId !== categoryId) return false;
     if (month && !e.entryDate.startsWith(month)) return false;
     if (q && !`${e.title}\n${e.body}`.toLowerCase().includes(q)) return false;
@@ -52,7 +53,8 @@ export function toMarkdown(entries: Entry[], categories: Category[] = []): strin
     .map((e) => {
       const title = e.title ? ` ${e.title}` : "";
       const cat = e.categoryId && names.get(e.categoryId) ? ` [${names.get(e.categoryId)}]` : "";
-      return `## ${e.entryDate}${title}${cat}\n\n${e.body}\n`;
+      const star = e.favorite ? " ★" : "";
+      return `## ${e.entryDate}${title}${cat}${star}\n\n${e.body}\n`;
     })
     .join("\n");
 }

@@ -5,12 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useApp } from "@/components/AppProvider";
 import { useHydrated } from "@/components/hooks";
-import { Button, Card, CategoryChip, ErrorBox, Spinner } from "@/components/ui";
+import { Button, Card, CategoryChip, ErrorBox, FavoriteButton, Spinner } from "@/components/ui";
 import { formatDateJa, formatTime } from "@/lib/dates";
 import { charCount, sortEntries } from "@/lib/stats";
 
 export function EntryView() {
-  const { entries, entriesLoaded, categories, deleteEntry } = useApp();
+  const { entries, entriesLoaded, categories, deleteEntry, toggleFavorite } = useApp();
   const router = useRouter();
   const params = useSearchParams();
   const id = params.get("id");
@@ -40,6 +40,15 @@ export function EntryView() {
     );
   }
 
+  const onToggleFavorite = async () => {
+    setError(null);
+    try {
+      await toggleFavorite(entry.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const remove = async () => {
     if (!window.confirm("この日記を削除します。元に戻せません。よろしいですか？")) return;
     setBusy(true);
@@ -58,7 +67,8 @@ export function EntryView() {
         <Link href="/" className="text-muted hover:text-ink">
           ← 日記
         </Link>
-        <span className="ml-auto flex gap-2">
+        <span className="ml-auto flex items-center gap-2">
+          <FavoriteButton favorite={entry.favorite} onToggle={onToggleFavorite} size="md" />
           <Link href={`/write?id=${entry.id}`}>
             <Button size="sm">✏️ 直す</Button>
           </Link>
@@ -74,6 +84,7 @@ export function EntryView() {
           <span className="tabular-nums">{formatTime(entry.createdAt)}</span>
           {category && <CategoryChip category={category} size="md" />}
           {sameDayCount > 1 && <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-bold">この日 {sameDayCount} 件</span>}
+          {entry.favorite && <span className="rounded-full bg-star/15 px-2 py-0.5 text-xs font-bold text-ink">★ お気に入り</span>}
         </div>
         {entry.title && <h1 className="mt-3 font-display text-2xl font-bold">{entry.title}</h1>}
         <div className="prose-diary mt-4 text-[15px]">{entry.body || <span className="text-muted">（本文なし）</span>}</div>

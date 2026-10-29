@@ -9,6 +9,7 @@ const mk = (id: string, entryDate: string, body = "", mood: Entry["mood"] = null
   body,
   mood,
   categoryId: null,
+  favorite: false,
   createdAt,
   updatedAt: createdAt,
 });
@@ -34,6 +35,12 @@ describe("stats", () => {
     expect(filterEntries(withCat, { categoryId: null }).map((e) => e.id)).toEqual(["a", "b"]);
     expect(filterEntries(entries, { month: "2026-09" }).map((e) => e.id)).toEqual(["b"]);
   });
+  it("filters favorites", () => {
+    const entries = [{ ...mk("a", "2026-10-16"), favorite: true }, mk("b", "2026-10-15")];
+    expect(filterEntries(entries, { favorite: true }).map((e) => e.id)).toEqual(["a"]);
+    expect(filterEntries(entries, { favorite: false }).map((e) => e.id)).toEqual(["a", "b"]);
+    expect(filterEntries(entries, {}).map((e) => e.id)).toEqual(["a", "b"]);
+  });
   it("sorts newest first and groups by month", () => {
     const entries = [mk("old", "2026-09-30"), mk("a", "2026-10-16", "", null, "2026-10-16T08:00:00Z"), mk("b", "2026-10-16", "", null, "2026-10-16T10:00:00Z")];
     expect(sortEntries(entries).map((e) => e.id)).toEqual(["b", "a", "old"]);
@@ -47,5 +54,6 @@ describe("stats", () => {
     expect(md).toBe("## 2026-10-16 題\n\n本文\n");
     const cats = [{ id: "poem", name: "詩", color: "lavender" as const, sortOrder: 0, createdAt: "" }];
     expect(toMarkdown([{ ...mk("a", "2026-10-16", "本文"), categoryId: "poem" }], cats)).toBe("## 2026-10-16 [詩]\n\n本文\n");
+    expect(toMarkdown([{ ...mk("a", "2026-10-16", "本文"), favorite: true }])).toBe("## 2026-10-16 ★\n\n本文\n");
   });
 });

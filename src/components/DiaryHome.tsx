@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useApp } from "@/components/AppProvider";
 import { useHydrated } from "@/components/hooks";
-import { Button, Card, CategoryChip, ErrorBox, Spinner, Stat, categoryColorVar, cx } from "@/components/ui";
+import { Button, Card, CategoryChip, ErrorBox, FavoriteButton, Spinner, Stat, categoryColorVar, cx } from "@/components/ui";
 import { formatDateJa, formatMonthJa, formatTime, monthGrid, relativeDays, shiftMonth, todayKey } from "@/lib/dates";
 import { charCount, currentStreak, filterEntries, groupByMonth } from "@/lib/stats";
 import type { Entry } from "@/lib/types";
@@ -116,11 +116,13 @@ function Calendar({
 }
 
 export function DiaryHome() {
-  const { entries, entriesLoaded, categories, error, mode } = useApp();
+  const { entries, entriesLoaded, categories, error, mode, toggleFavorite } = useApp();
   const hydrated = useHydrated();
   const [query, setQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
   const [calendar, setCalendar] = useState(() => {
     const d = new Date();
@@ -132,21 +134,32 @@ export function DiaryHome() {
   const thisMonthKey = `${calendar.year}-${String(calendar.month).padStart(2, "0")}`;
 
   const filtered = useMemo(() => {
-    const base = filterEntries(entries, { query, categoryId });
+    const base = filterEntries(entries, { query, categoryId, favorite: favoriteOnly });
     return selectedDay ? base.filter((e) => e.entryDate === selectedDay) : base;
-  }, [entries, query, selectedDay, categoryId]);
+  }, [entries, query, selectedDay, categoryId, favoriteOnly]);
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const groups = useMemo(() => groupByMonth(filtered), [filtered]);
   const streak = useMemo(() => currentStreak(entries), [entries]);
   const monthCount = useMemo(() => entries.filter((e) => e.entryDate.startsWith(thisMonthKey)).length, [entries, thisMonthKey]);
   const latest = useMemo(() => (entries.length ? [...entries].sort((a, b) => b.entryDate.localeCompare(a.entryDate))[0].entryDate : null), [entries]);
-  const filtering = query.trim() !== "" || selectedDay != null || categoryId != null;
+  const favoriteCount = useMemo(() => entries.filter((e) => e.favorite).length, [entries]);
+  const filtering = query.trim() !== "" || selectedDay != null || categoryId != null || favoriteOnly;
+
+  const onToggleFavorite = async (id: string) => {
+    setFavoriteError(null);
+    try {
+      await toggleFavorite(id);
+    } catch (e) {
+      setFavoriteError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   if (!hydrated || (!entriesLoaded && !error)) return <Spinner />;
 
   return (
     <div className="space-y-5">
       {error && <ErrorBox>{error}</ErrorBox>}
+      {favoriteError && <ErrorBox>{favoriteError}</ErrorBox>}
 
       {/* 今日 */}
       <Card className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -198,6 +211,21 @@ export function DiaryHome() {
               aria-label="検索"
               className="w-full rounded-full border border-line-strong bg-card px-4 py-2 text-sm outline-none focus:border-accent"
             />
+            <button
+              type="button"
+              aria-pressed={favoriteOnly}
+              aria-label="お気に入りだけ表示"
+              onClick={() => setFavoriteOnly((v) => !v)}
+              className={cx(
+                "inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-0.5 text-[11px] font-bold transition",
+                favoriteOnly ? "border-star bg-star/15 text-ink" : "border-transparent bg-surface text-muted hover:text-ink",
+              )}
+            >
+              <span aria-hidden="true" className={favoriteOnly ? "text-star" : ""}>
+                {favoriteOnly ? "★" : "☆"}
+              </span>
+              お気に入り{favoriteCount > 0 && <span className="tabular-nums">({favoriteCount})</span>}
+            </button>
             {categories.length > 0 && (
               <div className="flex flex-wrap gap-1.5" role="group" aria-label="カテゴリで絞り込む">
                 {categories.map((c) => {
@@ -225,6 +253,7 @@ export function DiaryHome() {
                   setQuery("");
                   setSelectedDay(null);
                   setCategoryId(null);
+                  setFavoriteOnly(false);
                 }}
               >
                 ✕ 絞り込みを解除
@@ -236,11 +265,16 @@ export function DiaryHome() {
         {/* 一覧 */}
         <div className="space-y-6">
           {selectedDay && <div className="text-sm font-bold text-muted">{formatDateJa(selectedDay)} の日記</div>}
+          {favoriteOnly && !selectedDay && <div className="text-sm font-bold text-muted">★ お気に入りの日記</div>}
           {groups.length === 0 && (
             <Card className="py-12 text-center">
-              <div className="text-3xl">🍃</div>
+              <div className="text-3xl">{favoriteOnly && favoriteCount === 0 ? "☆" : "🍃"}</div>
               <p className="mt-3 text-sm text-muted">
-                {entries.length === 0 ? "まだ日記はありません。最初の一行を書いてみましょう。" : "条件に合う日記はありません。"}
+                {entries.length === 0
+                  ? "まだ日記はありません。最初の一行を書いてみましょう。"
+                  : favoriteOnly && favoriteCount === 0
+                    ? "お気に入りはまだありません。日記の ☆ を押すと登録できます。"
+                    : "条件に合う日記はありません。"}
               </p>
             </Card>
           )}
@@ -260,12 +294,15 @@ export function DiaryHome() {
                       </Button>
                     </li>
                   ) : (
-                  <li key={item.entry.id}>
+                  <li key={item.entry.id} className="relative">
                     <Link
                       href={`/entry?id=${item.entry.id}`}
-                      className="block rounded-3xl border border-line bg-card px-5 py-4 shadow-soft transition hover:border-line-strong hover:bg-surface/60"
+                      className={cx(
+                        "block rounded-3xl border bg-card px-5 py-4 shadow-soft transition hover:border-line-strong hover:bg-surface/60",
+                        item.entry.favorite ? "border-star/50" : "border-line",
+                      )}
                     >
-                      <div className="flex items-center gap-2 text-xs text-muted">
+                      <div className="flex items-center gap-2 pr-9 text-xs text-muted">
                         <span>{formatDateJa(item.entry.entryDate)}</span>
                         <span className="tabular-nums">{formatTime(item.entry.createdAt)}</span>
                         {item.entry.categoryId && categoryMap.get(item.entry.categoryId) && <CategoryChip category={categoryMap.get(item.entry.categoryId)!} />}
@@ -275,6 +312,7 @@ export function DiaryHome() {
                       {item.entry.title && <div className="mt-1.5 font-display text-base font-bold">{item.entry.title}</div>}
                       <p className="mt-1 text-sm leading-relaxed text-ink/80">{excerpt(item.entry.body) || <span className="text-muted">（本文なし）</span>}</p>
                     </Link>
+                    <FavoriteButton favorite={item.entry.favorite} onToggle={() => onToggleFavorite(item.entry.id)} className="absolute right-3 top-2.5" />
                   </li>
                   ),
                 )}

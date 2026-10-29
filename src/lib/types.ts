@@ -26,6 +26,8 @@ export interface Entry {
   /** 以前の気分機能の名残。現在の UI では使わず、常に null で保存する（DB の列は残している） */
   mood: Mood | null;
   categoryId: string | null;
+  /** お気に入り（星マーク）。書く画面では触らず、星ボタンだけで切り替える */
+  favorite: boolean;
   createdAt: string;
   updatedAt: string;
 }

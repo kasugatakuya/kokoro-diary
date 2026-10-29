@@ -32,6 +32,41 @@ export function Button({ variant = "secondary", size = "md", className, type = "
   );
 }
 
+/** お気に入りの星。押すと ON/OFF が切り替わる */
+export function FavoriteButton({
+  favorite,
+  onToggle,
+  size = "sm",
+  className,
+}: {
+  favorite: boolean;
+  onToggle: () => void;
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={favorite}
+      aria-label={favorite ? "お気に入りから外す" : "お気に入りに登録"}
+      title={favorite ? "お気に入りから外す" : "お気に入りに登録"}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cx(
+        "inline-flex shrink-0 items-center justify-center rounded-full leading-none transition hover:bg-surface active:scale-90",
+        size === "sm" ? "size-8 text-lg" : "size-10 text-2xl",
+        favorite ? "text-star" : "text-muted/60 hover:text-star",
+        className,
+      )}
+    >
+      <span aria-hidden="true">{favorite ? "★" : "☆"}</span>
+    </button>
+  );
+}
+
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
   return <section className={cx("rounded-3xl border border-line bg-card p-5 shadow-soft sm:p-6", className)}>{children}</section>;
 }

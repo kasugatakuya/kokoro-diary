@@ -6,6 +6,8 @@ export interface EntryRepo {
   create(input: EntryInput): Promise<Entry>;
   update(id: string, input: EntryInput): Promise<Entry>;
   remove(id: string): Promise<void>;
+  /** お気に入りの ON/OFF だけを変える（本文などは触らない） */
+  setFavorite(id: string, favorite: boolean): Promise<Entry>;
   listCategories(): Promise<Category[]>;
   createCategory(input: CategoryInput): Promise<Category>;
   updateCategory(id: string, input: CategoryInput): Promise<Category>;
@@ -28,7 +30,7 @@ function readJson<T>(key: string): T[] {
 
 export class LocalRepo implements EntryRepo {
   private read(): Entry[] {
-    return readJson<Entry>(LOCAL_KEY).map((e) => ({ ...e, categoryId: e.categoryId ?? null }));
+    return readJson<Entry>(LOCAL_KEY).map((e) => ({ ...e, categoryId: e.categoryId ?? null, favorite: e.favorite ?? false }));
   }
   private write(entries: Entry[]) {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(entries));
@@ -44,7 +46,7 @@ export class LocalRepo implements EntryRepo {
   }
   async create(input: EntryInput) {
     const now = new Date().toISOString();
-    const entry: Entry = { id: crypto.randomUUID(), ...input, createdAt: now, updatedAt: now };
+    const entry: Entry = { id: crypto.randomUUID(), ...input, favorite: false, createdAt: now, updatedAt: now };
     this.write([entry, ...this.read()]);
     return entry;
   }
@@ -59,6 +61,14 @@ export class LocalRepo implements EntryRepo {
   }
   async remove(id: string) {
     this.write(this.read().filter((e) => e.id !== id));
+  }
+  async setFavorite(id: string, favorite: boolean) {
+    const entries = this.read();
+    const idx = entries.findIndex((e) => e.id === id);
+    if (idx < 0) throw new Error("日記が見つかりません。");
+    entries[idx] = { ...entries[idx], favorite };
+    this.write(entries);
+    return entries[idx];
   }
   async listCategories() {
     return this.readCategories().sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
@@ -98,6 +108,7 @@ interface Row {
   body: string;
   mood: number | null;
   category_id: string | null;
+  favorite: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -118,6 +129,7 @@ function fromRow(r: Row): Entry {
     body: r.body ?? "",
     mood: (r.mood as Mood | null) ?? null,
     categoryId: r.category_id ?? null,
+    favorite: r.favorite ?? false,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -131,7 +143,7 @@ function fromCategoryRow(r: CategoryRow): Category {
   return { id: r.id, name: r.name, color: isCategoryColor(r.color) ? r.color : "rose", sortOrder: r.sort_order, createdAt: r.created_at };
 }
 
-const COLUMNS = "id, entry_date, title, body, mood, category_id, created_at, updated_at";
+const COLUMNS = "id, entry_date, title, body, mood, category_id, favorite, created_at, updated_at";
 const CATEGORY_COLUMNS = "id, name, color, sort_order, created_at";
 
 export class SupabaseRepo implements EntryRepo {
@@ -165,6 +177,11 @@ export class SupabaseRepo implements EntryRepo {
   async remove(id: string) {
     const { error } = await this.client.from("entries").delete().eq("id", id);
     if (error) throw new Error(error.message);
+  }
+  async setFavorite(id: string, favorite: boolean) {
+    const { data, error } = await this.client.from("entries").update({ favorite }).eq("id", id).select(COLUMNS).single();
+    if (error) throw new Error(error.message);
+    return fromRow(data as Row);
   }
   async listCategories() {
     const { data, error } = await this.client

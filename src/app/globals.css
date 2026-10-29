@@ -22,6 +22,7 @@
   --cat-slate: #9aa3ad;
   --cat-peach: #efb28f;
   --cat-mint: #8fc9b8;
+  --star: #e2a93b;
   color-scheme: light;
 }
 
@@ -45,6 +46,7 @@
   --cat-slate: #7d8691;
   --cat-peach: #cf8f6a;
   --cat-mint: #6fa996;
+  --star: #f0bf55;
   color-scheme: dark;
 }
 
@@ -59,6 +61,7 @@
   --color-accent: var(--accent);
   --color-accent-deep: var(--accent-deep);
   --color-accent-soft: var(--accent-soft);
+  --color-star: var(--star);
   --shadow-soft: var(--shadow-soft);
 }
 

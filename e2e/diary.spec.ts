@@ -159,6 +159,37 @@ test.describe("ローカルモードの日記", () => {
     await expect(page.getByText("月の光が")).toBeVisible();
   });
 
+  test("星を押すとお気に入りになり、絞り込める", async ({ page }) => {
+    for (const text of ["大切にしたいことば", "ふつうの一日"]) {
+      await page.goto("/write");
+      await page.getByLabel("本文").fill(text);
+      await page.getByRole("button", { name: "しまっておく" }).click();
+      await expect(page).toHaveURL(/\/entry\?id=/);
+    }
+    // 読む画面の星で登録（いま開いているのは「ふつうの一日」）
+    await page.getByRole("button", { name: "お気に入りに登録" }).click();
+    await expect(page.getByText("★ お気に入り")).toBeVisible();
+    await page.getByRole("button", { name: "お気に入りから外す" }).click();
+    await expect(page.getByText("★ お気に入り")).toHaveCount(0);
+
+    // 一覧の星で「大切にしたいことば」を登録し、絞り込む
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "お気に入りに登録" })).toHaveCount(2);
+    await page.locator("li", { hasText: "大切にしたいことば" }).getByRole("button", { name: "お気に入りに登録" }).click();
+    await expect(page.getByRole("button", { name: "お気に入りから外す" })).toHaveCount(1);
+    await page.getByRole("button", { name: "お気に入りだけ表示" }).click();
+    await expect(page.getByText("大切にしたいことば")).toBeVisible();
+    await expect(page.getByText("ふつうの一日")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "絞り込みを解除" }).click();
+    await expect(page.getByText("ふつうの一日")).toBeVisible();
+
+    // リロードしてもお気に入りは残っている
+    await page.reload();
+    await expect(page.getByRole("button", { name: "お気に入りから外す" })).toHaveCount(1);
+    await expect(page.locator("li", { hasText: "大切にしたいことば" }).getByRole("button", { name: "お気に入りから外す" })).toBeVisible();
+  });
+
   test("「この日記について」のページが読める", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: /思い/ }).first().click();
