@@ -52,16 +52,14 @@ test.describe("ローカルモードの日記", () => {
     }
     await expect(page.getByRole("button", { name: /3件$/ })).toBeVisible();
 
-    // 4 件目を書くと、3 件までの表示 + 「もっと見る」になる
+    // 4 件目を書いても、同じ日の分は畳まれず全部並ぶ（最新が上）
     await page.goto("/write");
     await page.getByLabel("本文").fill("深夜: まだ起きている");
     await page.getByRole("button", { name: "しまっておく" }).click();
     await expect(page).toHaveURL(/\/entry\?id=/);
     await page.goto("/");
     await expect(page.getByText("今日は 4 件書きました")).toBeVisible();
-    await expect(page.getByText("深夜: まだ起きている")).toBeVisible(); // 最新は上に出る
-    await expect(page.getByText("朝: ねむい")).toHaveCount(0); // いちばん古い 1 件が畳まれる
-    await page.getByRole("button", { name: /もっと見る/ }).click();
+    await expect(page.getByText("深夜: まだ起きている")).toBeVisible();
     await expect(page.getByText("朝: ねむい")).toBeVisible();
     await expect(page.getByRole("button", { name: /もっと見る/ })).toHaveCount(0);
   });
@@ -188,6 +186,43 @@ test.describe("ローカルモードの日記", () => {
     await page.reload();
     await expect(page.getByRole("button", { name: "お気に入りから外す" })).toHaveCount(1);
     await expect(page.locator("li", { hasText: "大切にしたいことば" }).getByRole("button", { name: "お気に入りから外す" })).toBeVisible();
+  });
+
+  test("11 件以上になるとページ送りになる", async ({ page }) => {
+    // localStorage に 11 件を直接入れておく（新しい順に並ぶよう、日付をずらす）
+    await page.addInitScript(() => {
+      if (localStorage.getItem("kokoro-diary:entries")) return;
+      const entries = Array.from({ length: 11 }, (_, i) => {
+        const d = new Date(2026, 0, 1 + i);
+        const entryDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const createdAt = `${entryDate}T09:00:00.000Z`;
+        return { id: `seed-${i + 1}`, entryDate, title: "", body: `日記 ${i + 1} 番目`, mood: null, categoryId: null, favorite: false, createdAt, updatedAt: createdAt };
+      });
+      localStorage.setItem("kokoro-diary:entries", JSON.stringify(entries));
+    });
+    await page.goto("/");
+    await expect(page.getByText("全 11 件中 1〜10 件")).toBeVisible();
+    await expect(page.getByText("日記 11 番目")).toBeVisible(); // 最新が先頭
+    await expect(page.getByText("日記 2 番目", { exact: true })).toBeVisible();
+    await expect(page.getByText("日記 1 番目", { exact: true })).toHaveCount(0); // いちばん古い 1 件は 2 ページ目
+    await expect(page.getByRole("button", { name: "前のページ" })).toBeDisabled();
+
+    await page.getByRole("button", { name: "次のページ" }).click();
+    await expect(page.getByText("全 11 件中 11〜11 件")).toBeVisible();
+    await expect(page.getByText("日記 1 番目", { exact: true })).toBeVisible();
+    await expect(page.getByText("日記 11 番目")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "次のページ" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "2ページ目" })).toHaveAttribute("aria-current", "page");
+
+    // 絞り込むと 1 ページ目に戻り、10 件以下ならページ送りは消える
+    await page.getByLabel("検索").fill("1 番目");
+    await expect(page.getByText("日記 1 番目", { exact: true })).toBeVisible();
+    await expect(page.getByText("日記 11 番目")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "ページ送り" })).toHaveCount(0);
+    await page.getByRole("button", { name: "絞り込みを解除" }).click();
+    await expect(page.getByText("全 11 件中 1〜10 件")).toBeVisible();
+    await page.getByRole("button", { name: "1ページ目" }).click();
+    await expect(page.getByText("日記 11 番目")).toBeVisible();
   });
 
   test("「この日記について」のページが読める", async ({ page }) => {

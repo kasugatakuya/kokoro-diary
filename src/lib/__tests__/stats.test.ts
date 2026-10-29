@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { charCount, currentStreak, filterEntries, groupByMonth, sortEntries, toMarkdown } from "../stats";
+import { PAGE_SIZE, charCount, currentStreak, filterEntries, groupByMonth, pageNumbers, paginate, sortEntries, toMarkdown } from "../stats";
 import type { Entry } from "../types";
 
 const mk = (id: string, entryDate: string, body = "", mood: Entry["mood"] = null, createdAt = `${entryDate}T09:00:00Z`): Entry => ({
@@ -55,5 +55,28 @@ describe("stats", () => {
     const cats = [{ id: "poem", name: "詩", color: "lavender" as const, sortOrder: 0, createdAt: "" }];
     expect(toMarkdown([{ ...mk("a", "2026-10-16", "本文"), categoryId: "poem" }], cats)).toBe("## 2026-10-16 [詩]\n\n本文\n");
     expect(toMarkdown([{ ...mk("a", "2026-10-16", "本文"), favorite: true }])).toBe("## 2026-10-16 ★\n\n本文\n");
+  });
+  it("paginates 10 per page and clamps the page number", () => {
+    const items = Array.from({ length: 11 }, (_, i) => i + 1);
+    expect(PAGE_SIZE).toBe(10);
+    const p1 = paginate(items, 1);
+    expect(p1.items).toHaveLength(10);
+    expect([p1.page, p1.pageCount, p1.total, p1.from, p1.to]).toEqual([1, 2, 11, 1, 10]);
+    const p2 = paginate(items, 2);
+    expect(p2.items).toEqual([11]);
+    expect([p2.from, p2.to]).toEqual([11, 11]);
+    expect(paginate(items, 99).page).toBe(2);
+    expect(paginate(items, 0).page).toBe(1);
+    // 10 件ちょうどなら 1 ページに収まる
+    expect(paginate(items.slice(0, 10), 1).pageCount).toBe(1);
+    const empty = paginate([], 1);
+    expect([empty.pageCount, empty.from, empty.to]).toEqual([1, 0, 0]);
+  });
+  it("lists page numbers with gaps", () => {
+    expect(pageNumbers(1, 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(pageNumbers(5, 10)).toEqual([1, null, 4, 5, 6, null, 10]);
+    expect(pageNumbers(1, 10)).toEqual([1, 2, null, 10]);
+    expect(pageNumbers(3, 10)).toEqual([1, 2, 3, 4, null, 10]);
+    expect(pageNumbers(10, 10)).toEqual([1, null, 9, 10]);
   });
 });

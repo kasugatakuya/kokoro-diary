@@ -1,36 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useApp } from "@/components/AppProvider";
 import { useHydrated } from "@/components/hooks";
-import { Button, Card, CategoryChip, ErrorBox, FavoriteButton, Spinner, Stat, categoryColorVar, cx } from "@/components/ui";
+import { Button, Card, CategoryChip, ErrorBox, FavoriteButton, Pagination, Spinner, Stat, categoryColorVar, cx } from "@/components/ui";
 import { formatDateJa, formatMonthJa, formatTime, monthGrid, relativeDays, shiftMonth, todayKey } from "@/lib/dates";
-import { charCount, currentStreak, filterEntries, groupByMonth } from "@/lib/stats";
+import { PAGE_SIZE, charCount, currentStreak, filterEntries, groupByMonth, paginate, sortEntries } from "@/lib/stats";
 import type { Entry } from "@/lib/types";
-
-/** 1 日に表示する件数の上限。これを超えた分は「もっと見る」で開く */
-export const DAY_LIMIT = 3;
-
-type ListItem = { kind: "entry"; entry: Entry } | { kind: "more"; day: string; rest: number };
-
-/** 同じ日の日記が DAY_LIMIT を超えるとき、超えた分を「もっと見る」にまとめる。expanded が null なら全件表示 */
-export function collapseByDay(entries: Entry[], expanded: Set<string> | null): ListItem[] {
-  const out: ListItem[] = [];
-  const seen = new Map<string, number>();
-  for (const entry of entries) {
-    const n = (seen.get(entry.entryDate) ?? 0) + 1;
-    seen.set(entry.entryDate, n);
-    if (expanded && !expanded.has(entry.entryDate) && n > DAY_LIMIT) {
-      const last = out[out.length - 1];
-      if (last && last.kind === "more" && last.day === entry.entryDate) last.rest++;
-      else out.push({ kind: "more", day: entry.entryDate, rest: 1 });
-      continue;
-    }
-    out.push({ kind: "entry", entry });
-  }
-  return out;
-}
 
 function excerpt(body: string, max = 90): string {
   const flat = body.replace(/\s+/g, " ").trim();
@@ -123,11 +100,15 @@ export function DiaryHome() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
-  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => new Set());
   const [calendar, setCalendar] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() + 1 };
   });
+  // ページ番号は絞り込み条件と組で持ち、条件が変わるたびに 1 ページ目に戻す
+  const filterKey = JSON.stringify([query, selectedDay, categoryId, favoriteOnly]);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  if (pageState.key !== filterKey) setPageState({ key: filterKey, page: 1 });
+  const listTop = useRef<HTMLDivElement>(null);
 
   const today = todayKey();
   const todayEntries = entries.filter((e) => e.entryDate === today);
@@ -138,12 +119,18 @@ export function DiaryHome() {
     return selectedDay ? base.filter((e) => e.entryDate === selectedDay) : base;
   }, [entries, query, selectedDay, categoryId, favoriteOnly]);
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
-  const groups = useMemo(() => groupByMonth(filtered), [filtered]);
+  const paged = useMemo(() => paginate(sortEntries(filtered), pageState.key === filterKey ? pageState.page : 1), [filtered, pageState, filterKey]);
+  const groups = useMemo(() => groupByMonth(paged.items), [paged]);
   const streak = useMemo(() => currentStreak(entries), [entries]);
   const monthCount = useMemo(() => entries.filter((e) => e.entryDate.startsWith(thisMonthKey)).length, [entries, thisMonthKey]);
   const latest = useMemo(() => (entries.length ? [...entries].sort((a, b) => b.entryDate.localeCompare(a.entryDate))[0].entryDate : null), [entries]);
   const favoriteCount = useMemo(() => entries.filter((e) => e.favorite).length, [entries]);
   const filtering = query.trim() !== "" || selectedDay != null || categoryId != null || favoriteOnly;
+
+  const goToPage = (page: number) => {
+    setPageState({ key: filterKey, page });
+    listTop.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
 
   const onToggleFavorite = async (id: string) => {
     setFavoriteError(null);
@@ -263,7 +250,7 @@ export function DiaryHome() {
         </div>
 
         {/* 一覧 */}
-        <div className="space-y-6">
+        <div ref={listTop} className="scroll-mt-20 space-y-6">
           {selectedDay && <div className="text-sm font-bold text-muted">{formatDateJa(selectedDay)} の日記</div>}
           {favoriteOnly && !selectedDay && <div className="text-sm font-bold text-muted">★ お気に入りの日記</div>}
           {groups.length === 0 && (
@@ -282,43 +269,37 @@ export function DiaryHome() {
             <section key={g.month}>
               <h2 className="mb-2 px-1 font-display text-sm font-bold text-muted">{formatMonthJa(Number(g.month.slice(0, 4)), Number(g.month.slice(5)))}</h2>
               <ul className="space-y-2">
-                {collapseByDay(g.entries, filtering ? null : expandedDays).map((item) =>
-                  item.kind === "more" ? (
-                    <li key={`more-${item.day}`} className="pl-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setExpandedDays((prev) => new Set(prev).add(item.day))}
-                      >
-                        ▾ もっと見る（{formatDateJa(item.day, false)} あと {item.rest} 件）
-                      </Button>
-                    </li>
-                  ) : (
-                  <li key={item.entry.id} className="relative">
+                {g.entries.map((entry) => (
+                  <li key={entry.id} className="relative">
                     <Link
-                      href={`/entry?id=${item.entry.id}`}
+                      href={`/entry?id=${entry.id}`}
                       className={cx(
                         "block rounded-3xl border bg-card px-5 py-4 shadow-soft transition hover:border-line-strong hover:bg-surface/60",
-                        item.entry.favorite ? "border-star/50" : "border-line",
+                        entry.favorite ? "border-star/50" : "border-line",
                       )}
                     >
                       <div className="flex items-center gap-2 pr-9 text-xs text-muted">
-                        <span>{formatDateJa(item.entry.entryDate)}</span>
-                        <span className="tabular-nums">{formatTime(item.entry.createdAt)}</span>
-                        {item.entry.categoryId && categoryMap.get(item.entry.categoryId) && <CategoryChip category={categoryMap.get(item.entry.categoryId)!} />}
-                        {relativeDays(item.entry.entryDate) && <span className="rounded-full bg-surface px-2 py-0.5 font-bold">{relativeDays(item.entry.entryDate)}</span>}
-                        <span className="ml-auto">{charCount(item.entry.body)} 文字</span>
+                        <span>{formatDateJa(entry.entryDate)}</span>
+                        <span className="tabular-nums">{formatTime(entry.createdAt)}</span>
+                        {entry.categoryId && categoryMap.get(entry.categoryId) && <CategoryChip category={categoryMap.get(entry.categoryId)!} />}
+                        {relativeDays(entry.entryDate) && <span className="rounded-full bg-surface px-2 py-0.5 font-bold">{relativeDays(entry.entryDate)}</span>}
+                        <span className="ml-auto">{charCount(entry.body)} 文字</span>
                       </div>
-                      {item.entry.title && <div className="mt-1.5 font-display text-base font-bold">{item.entry.title}</div>}
-                      <p className="mt-1 text-sm leading-relaxed text-ink/80">{excerpt(item.entry.body) || <span className="text-muted">（本文なし）</span>}</p>
+                      {entry.title && <div className="mt-1.5 font-display text-base font-bold">{entry.title}</div>}
+                      <p className="mt-1 text-sm leading-relaxed text-ink/80">{excerpt(entry.body) || <span className="text-muted">（本文なし）</span>}</p>
                     </Link>
-                    <FavoriteButton favorite={item.entry.favorite} onToggle={() => onToggleFavorite(item.entry.id)} className="absolute right-3 top-2.5" />
+                    <FavoriteButton favorite={entry.favorite} onToggle={() => onToggleFavorite(entry.id)} className="absolute right-3 top-2.5" />
                   </li>
-                  ),
-                )}
+                ))}
               </ul>
             </section>
           ))}
+          <Pagination
+            page={paged.page}
+            pageCount={paged.pageCount}
+            onChange={goToPage}
+            summary={`全 ${paged.total} 件中 ${paged.from}〜${paged.to} 件（${PAGE_SIZE} 件ずつ）`}
+          />
         </div>
       </div>
     </div>

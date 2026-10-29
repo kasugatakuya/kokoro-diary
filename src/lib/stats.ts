@@ -37,6 +37,49 @@ export function sortEntries(entries: Entry[]): Entry[] {
   return [...entries].sort((a, b) => (a.entryDate === b.entryDate ? b.createdAt.localeCompare(a.createdAt) : b.entryDate.localeCompare(a.entryDate)));
 }
 
+/** 一覧の 1 ページあたりの件数。これを超えるとページ送りになる */
+export const PAGE_SIZE = 10;
+
+export interface Page<T> {
+  items: T[];
+  /** 1 始まり。範囲外を渡しても 1..pageCount に丸める */
+  page: number;
+  pageCount: number;
+  total: number;
+  /** 表示している範囲（1 始まり、両端を含む）。items が空なら 0 */
+  from: number;
+  to: number;
+}
+
+/** 配列を pageSize 件ずつに区切り、page 番目（1 始まり）を返す */
+export function paginate<T>(items: T[], page: number, pageSize = PAGE_SIZE): Page<T> {
+  const total = items.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.min(Math.max(1, Math.floor(page) || 1), pageCount);
+  const start = (current - 1) * pageSize;
+  const slice = items.slice(start, start + pageSize);
+  return { items: slice, page: current, pageCount, total, from: slice.length ? start + 1 : 0, to: start + slice.length };
+}
+
+/**
+ * ページ番号ボタンに並べる番号。多いときは先頭・末尾・現在の前後だけ残し、間は null（…）にする
+ * 例: 10 ページ中 5 ページ目 → [1, null, 4, 5, 6, null, 10]
+ */
+export function pageNumbers(page: number, pageCount: number, around = 1): (number | null)[] {
+  if (pageCount <= 2 * around + 5) return Array.from({ length: pageCount }, (_, i) => i + 1);
+  const keep = new Set<number>([1, pageCount]);
+  for (let i = page - around; i <= page + around; i++) if (i >= 1 && i <= pageCount) keep.add(i);
+  const out: (number | null)[] = [];
+  let prev = 0;
+  for (const n of [...keep].sort((a, b) => a - b)) {
+    if (n - prev === 2) out.push(prev + 1);
+    else if (n - prev > 2) out.push(null);
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
 export function groupByMonth(entries: Entry[]): { month: string; entries: Entry[] }[] {
   const map = new Map<string, Entry[]>();
   for (const e of sortEntries(entries)) {

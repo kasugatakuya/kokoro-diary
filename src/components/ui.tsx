@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { pageNumbers } from "@/lib/stats";
 import { CATEGORY_COLORS, type Category, type CategoryColor } from "@/lib/types";
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
@@ -272,5 +273,56 @@ export function CategoryPicker({
         </div>
       )}
     </div>
+  );
+}
+
+/** ページ送り。pageCount が 1 以下なら何も描かない */
+export function Pagination({
+  page,
+  pageCount,
+  onChange,
+  summary,
+  className,
+}: {
+  page: number;
+  pageCount: number;
+  onChange: (page: number) => void;
+  summary?: React.ReactNode;
+  className?: string;
+}) {
+  if (pageCount <= 1) return null;
+  return (
+    <nav aria-label="ページ送り" className={cx("flex flex-col items-center gap-2", className)}>
+      <div className="flex flex-wrap items-center justify-center gap-1">
+        <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label="前のページ">
+          ‹ 前へ
+        </Button>
+        {pageNumbers(page, pageCount).map((n, i) =>
+          n === null ? (
+            <span key={`gap-${i}`} className="px-1 text-xs text-muted" aria-hidden="true">
+              …
+            </span>
+          ) : (
+            <button
+              key={n}
+              type="button"
+              aria-label={`${n}ページ目`}
+              aria-current={n === page ? "page" : undefined}
+              onClick={() => n !== page && onChange(n)}
+              className={cx(
+                "size-8 rounded-full text-xs font-bold tabular-nums transition",
+                n === page ? "bg-accent text-white" : "text-muted hover:bg-surface hover:text-ink",
+              )}
+            >
+              {n}
+            </button>
+          ),
+        )}
+        <Button size="sm" variant="ghost" disabled={page >= pageCount} onClick={() => onChange(page + 1)} aria-label="次のページ">
+          次へ ›
+        </Button>
+      </div>
+      {summary && <div className="text-[11px] text-muted tabular-nums">{summary}</div>}
+    </nav>
   );
 }
